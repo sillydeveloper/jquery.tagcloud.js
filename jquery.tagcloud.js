@@ -5,10 +5,12 @@
  * https://github.com/addywaddy/jquery.tagcloud.js
  * created by Adam Groves
  */
-(function($) {
+(function() {
 
-  /*global jQuery*/
+  /* global jQuery */
   "use strict";
+
+  var $ = this.jQuery;
 
   var compareWeights = function(a, b)
   {
@@ -53,43 +55,57 @@
     });
     return toHex(rgb);
   };
+  $.fn.extend({
+    tagcloud: function(options) {
+        var opts = $.extend({}, $.fn.tagcloud.defaults, options);
+        var tagWeights = this.map(function(){
+          return ((opts.weightselector == "rel") && $( this ).attr('rel') ||
+                  (opts.weightselector == "data") && $( this ).data('weight'));
+        });
+        tagWeights = jQuery.makeArray(tagWeights).sort(compareWeights);
+        var lowest = tagWeights[0];
+        var highest = tagWeights.pop();
+        var range = highest - lowest;
+        if(range === 0) { range = 1; }
+        // Sizes
+        var fontIncr, colorIncr, sizes = {};
+        if (opts.size) {
+          fontIncr = (opts.size.end - opts.size.start) / range;
+          for (var i = opts.size.start; i < opts.size.end; i++) {
+            sizes[i] = range * i;
+          }
+          
+        }
+        // Colors
+        if (opts.color) {
+          colorIncr = colorIncrement (opts.color, range);
+        }
 
-  $.fn.tagcloud = function(options) {
+        return this.each(function() {
+          var calcWeight = function(weight) {
+            for(var i in sizes) {
+                if (sizes[i] < i * weight) return i;
+            }
+          };
+          var weighting = ((opts.weightselector == "rel") && $( this ).attr('rel') ||
+                          (opts.weightselector == "data") && $( this ).data('weight')) - lowest;
 
-    var opts = $.extend({}, $.fn.tagcloud.defaults, options);
-    var tagWeights = this.map(function(){
-      return ((opts.weightselector == "rel") && $( this ).attr('rel') ||
-              (opts.weightselector == "data-weight") && $( this ).data('weight'));
-    });
-    tagWeights = jQuery.makeArray(tagWeights).sort(compareWeights);
-    var lowest = tagWeights[0];
-    var highest = tagWeights.pop();
-    var range = highest - lowest;
-    if(range === 0) {range = 1;}
-    // Sizes
-    var fontIncr, colorIncr;
-    if (opts.size) {
-      fontIncr = (opts.size.end - opts.size.start)/range;
+          if (opts.size) {
+            var _size = opts.size.start + (weighting * fontIncr);
+            // check the _size:
+            _size = (_size > opts.size.end) ? opts.size.end : (_size < opts.size.start) ? opts.size.start : _size;
+            $(this).css({"font-size": _size+opts.size.unit});
+          }
+          if (opts.color) {
+            $(this).css({"color": tagColor(opts.color, colorIncr, weighting)});
+          }
+        });
+
     }
-    // Colors
-    if (opts.color) {
-      colorIncr = colorIncrement (opts.color, range);
-    }
-    return this.each(function() {
-      var weighting = ((opts.weightselector == "rel") && $( this ).attr('rel') ||
-                      (opts.weightselector == "data") && $( this ).data('weight')) - lowest;
-      if (opts.size) {
-        $(this).css({"font-size": opts.size.start + (weighting * fontIncr) + opts.size.unit});
-      }
-      if (opts.color) {
-        $(this).css({"color": tagColor(opts.color, colorIncr, weighting)});
-      }
-    });
-  };
+  });
 
   $.fn.tagcloud.defaults = {
     size: {start: 14, end: 18, unit: "pt"},
-    weightselector: "weight"
+    weightselector: "data"
   };
-
-})(jQuery);
+}).call(this);
